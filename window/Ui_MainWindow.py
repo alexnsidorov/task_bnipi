@@ -9,8 +9,7 @@
 
 
 from PyQt5 import QtCore, QtWidgets
-from pyqtgraph import GraphicsView
-from window.widgets import TBTableView 
+from pyqtgraph import PlotWidget
 
 
 class Ui_MainWindow(object):
@@ -24,10 +23,11 @@ class Ui_MainWindow(object):
         self.splitter = QtWidgets.QSplitter(self.centralwidget)
         self.splitter.setOrientation(QtCore.Qt.Vertical)
         self.splitter.setObjectName("splitter")
-        self.table = TBTableView(self.splitter)
+        self.table = QtWidgets.QTableView(self.splitter)
         self.table.setObjectName("table")
-        self.graph = GraphicsView(self.splitter)
+        self.graph = PlotWidget(self.splitter)
         self.graph.setObjectName("graph")
+        self.graph.setMinimumHeight(300)
         self.verticalLayout.addWidget(self.splitter)
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
