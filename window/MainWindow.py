@@ -17,20 +17,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         #берем данные из файлика
         path_file = os.environ.get('path_file')
-        value_from_file = wwf.values_from_file(path_file)
+        value = wwf.values_from_file(path_file)
         
         #проверяем есть ли данные
-        if len(value_from_file) != 0:
-            self._data = value_from_file
-        else:
-            self._data = np.array([
+        if 'ndarray' not in str(type(value)):
+            value = np.array([
                 [3, -5, 6, 1],
                 [2, 4, -5, 10],
                 [1, -3, 6, -15],
                 [4, -1, 20, -15]
             ])
 
-        tableModel = TableModel(self.add_columns_finaly(self._data))
+        tableModel = TableModel(self.add_columns_finaly(value))
         self.table.setModel(tableModel)
         
         #первая колонка будет изменяться по средствам Сombobox
