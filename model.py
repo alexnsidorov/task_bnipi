@@ -53,7 +53,6 @@ class TableModel(QAbstractTableModel):
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
 
         if index.isValid():
-            # self.change_color(index)
             return Qt.ItemFlag.ItemIsEditable | Qt.ItemFlag.ItemIsEnabled
         else:
             return Qt.ItemFlag.ItemIsEnabled
