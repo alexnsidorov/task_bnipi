@@ -77,9 +77,11 @@ class TableModel(QAbstractTableModel):
         '''
             Сумма строки
         '''
-        self._data[index.row()-1, -2] = sum(self._data[index.row()][:-2])
+        self.layoutAboutToBeChanged.emit()
+        self._data[index.row(), index.column()] = sum(self._data[index.row()][:-2])
         self.resum_befor_column(index)
         self.change_summary_row.emit(index)
+        self.layoutChanged.emit()
 
 
     def resum_befor_column(self, index: QModelIndex = ...) -> None:
