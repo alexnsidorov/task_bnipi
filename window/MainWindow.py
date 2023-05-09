@@ -1,11 +1,9 @@
-from PyQt5.QtWidgets import QMainWindow, QAbstractItemView
+from PyQt5.QtWidgets import QMainWindow, QAbstractItemView, QFileDialog
 from PyQt5.QtCore import pyqtSlot, QItemSelection, Qt
 from .Ui_MainWindow import Ui_MainWindow
 from model import TableModel
 from delegate import ComboDelegate
-import numpy as np
-import work_with_file as wwf
-import os
+import work_with_file as wwf 
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -15,23 +13,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self._selectionColumn = {}
 
-        #берем данные из файлика
-        path_file = os.environ.get('path_file')
-        value_from_file = wwf.values_from_file(path_file)
-        
-        #проверяем есть ли данные
-        if len(value_from_file) != 0:
-            self._data = value_from_file
-        else:
-            self._data = np.array([
-                [3, -5, 6, 1],
-                [2, 4, -5, 10],
-                [1, -3, 6, -15],
-                [4, -1, 20, -15]
-            ])
-
-        tableModel = TableModel(self.add_columns_finaly(self._data))
-        self.table.setModel(tableModel)
+        self.tableModel = TableModel()
+        self.table.setModel(self.tableModel)
         
         #первая колонка будет изменяться по средствам Сombobox
         self.table.setItemDelegateForColumn(0, ComboDelegate(self))
@@ -40,12 +23,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.table.selectionModel().selectionChanged.connect(self._repaint_graph)
         self.table.setSelectionMode(
             QAbstractItemView.SelectionMode.MultiSelection)
-
-    def add_columns_finaly(self, data:np.ndarray) -> np.ndarray:
-        ''' Создаем две колонки в массиве '''
-        data = np.c_[data, np.zeros(data.shape[0], dtype=np.int8)]
-        data = np.c_[data, np.zeros(data.shape[0], dtype=np.int8)]
-        return data
+        
+        self.open.clicked.connect(self._open_file)
+        self.save.clicked.connect(self._save_file)
 
     pyqtSlot(QItemSelection, QItemSelection)
     def _repaint_graph(self, selected: QItemSelection, deselected: QItemSelection) -> None:
@@ -53,17 +33,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             перерисовываем график
         '''
         try:
-            #заносим массив вырбранной колонки
-            value = [int(x.data(Qt.ItemDataRole.DisplayRole))
+            try:
+                #заносим массив вырбранной колонки
+                value = [int(x.data(Qt.ItemDataRole.DisplayRole))
                      for x in selected.indexes()]
             
-            self._selectionColumn.update({
-                selected.indexes()[0].column(): value
-            })
-        except IndexError:
+                self._selectionColumn.update({
+                    selected.indexes()[0].column(): value
+                })
+            except IndexError:
             #deselected 
-            del self._selectionColumn[deselected.indexes()[0].column()]
-
+                del self._selectionColumn[deselected.indexes()[0].column()]
+        except KeyError:
+            ...
+            
         if len(self._selectionColumn) < 2:
             return
         
@@ -72,3 +55,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #рисуем график
         for i in self._selectionColumn:
             self.graph.plot(self._selectionColumn.get(i))
+            
+    def _open_file(self) -> None:
+        fileName, _ = QFileDialog.getOpenFileName(self, "Открыть файл", "", "All Files (*);;")
+        if fileName:
+            self.tableModel.update(wwf.open_h5py(fileName))
+            
+            
+    def _save_file(self) -> None:
+        
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getSaveFileName(self, "Сохранить файл", "", "All Files (*);;", options=options)
+        if fileName:
+            wwf.save_h5py(fileName, self.tableModel.get_data())

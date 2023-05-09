@@ -1,6 +1,6 @@
 from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt, pyqtSignal, Qt
-from PyQt5.QtGui import QBrush, QColor
-from typing import Any, Dict
+from PyQt5.QtGui import QColor
+from typing import Any
 import numpy as np
 
 color = {
@@ -19,9 +19,14 @@ class TableModel(QAbstractTableModel):
 
     returnData = pyqtSignal(QModelIndex, int)
 
-    def __init__(self, data: np.ndarray = None) -> bool:
+    def __init__(self) -> bool:
         super(TableModel, self).__init__()
-        self._data = data
+        self._data = [[]]
+        
+    def update(self, data: np.ndarray) -> None:
+        self.layoutAboutToBeChanged.emit()
+        self._data = self.add_columns_finaly(data)
+        self.layoutChanged.emit()
 
     def rowCount(self, parent: QModelIndex = ...) -> int:
         ''' Количество строк '''
@@ -77,9 +82,11 @@ class TableModel(QAbstractTableModel):
         '''
             Сумма строки
         '''
-        self._data[index.row()-1, -2] = sum(self._data[index.row()][:-2])
+        self.layoutAboutToBeChanged.emit()
+        self._data[index.row(), index.column()] = sum(self._data[index.row()][:-2])
         self.resum_befor_column(index)
         self.change_summary_row.emit(index)
+        self.layoutChanged.emit()
 
 
     def resum_befor_column(self, index: QModelIndex = ...) -> None:
@@ -113,3 +120,14 @@ class TableModel(QAbstractTableModel):
                 
         if index.column() > self.columnCount() - 3:
             return QColor(color.get('yellow'))
+        
+    def get_data(self) -> np.ndarray:
+        '''Удаляем наши две колонки и возвращаем результат'''
+        return np.delete(self._data, [-1, -2], axis=1)
+        
+
+    def add_columns_finaly(self, data:np.ndarray) -> np.ndarray:
+        ''' Создаем две колонки в массиве '''
+        data = np.c_[data, np.zeros(data.shape[0], dtype=np.int8)]
+        data = np.c_[data, np.zeros(data.shape[0], dtype=np.int8)]
+        return data

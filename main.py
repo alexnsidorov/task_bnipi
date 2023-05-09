@@ -6,13 +6,8 @@ import sys, os
 def main():
     app = QApplication(sys.argv)
 
-    os.environ.update({
-        'path_file': 'array.txt'
-    })
-    
     main_window = MainWindow()
     main_window.show()
-    
     
     app.exec()
 
