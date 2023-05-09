@@ -3,7 +3,6 @@ from PyQt5.QtCore import pyqtSlot, QItemSelection, Qt
 from .Ui_MainWindow import Ui_MainWindow
 from model import TableModel
 from delegate import ComboDelegate
-from pyqtgraph import PlotDataItem
 import numpy as np
 import work_with_file as wwf
 import os
@@ -16,9 +15,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self._selectionColumn = {}
 
+        #берем данные из файлика
         path_file = os.environ.get('path_file')
         value_from_file = wwf.values_from_file(path_file)
         
+        #проверяем есть ли данные
         if len(value_from_file) != 0:
             self._data = value_from_file
         else:
@@ -31,8 +32,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         tableModel = TableModel(self.add_columns_finaly(self._data))
         self.table.setModel(tableModel)
+        
+        #первая колонка будет изменяться по средствам Сombobox
         self.table.setItemDelegateForColumn(0, ComboDelegate(self))
-        self.table.selectionModel().selectionChanged.connect(self._show_graph)
+        
+        #подключаемя к слоту и выбираем сбособ выбора колонок
+        self.table.selectionModel().selectionChanged.connect(self._repaint_graph)
         self.table.setSelectionMode(
             QAbstractItemView.SelectionMode.MultiSelection)
 
@@ -43,9 +48,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return data
 
     pyqtSlot(QItemSelection, QItemSelection)
-    def _show_graph(self, selected: QItemSelection, deselected: QItemSelection) -> None:
-
+    def _repaint_graph(self, selected: QItemSelection, deselected: QItemSelection) -> None:
+        '''
+            перерисовываем график
+        '''
         try:
+            #заносим массив вырбранной колонки
             value = [int(x.data(Qt.ItemDataRole.DisplayRole))
                      for x in selected.indexes()]
             
@@ -53,10 +61,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 selected.indexes()[0].column(): value
             })
         except IndexError:
+            #deselected 
             del self._selectionColumn[deselected.indexes()[0].column()]
 
         if len(self._selectionColumn) < 2:
             return
-        self.graph.clear()
+        
+        self.graph.clear() #Чистим график
+        
+        #рисуем график
         for i in self._selectionColumn:
             self.graph.plot(self._selectionColumn.get(i))
