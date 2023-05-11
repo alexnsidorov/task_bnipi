@@ -1,8 +1,8 @@
 from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt, pyqtSignal, Qt
-from PyQt5.QtGui import QBrush, QColor
-from typing import Any, Dict
+from PyQt5.QtGui import QColor
+from typing import Any
 import numpy as np
-
+from window.widgets import show_warning
 color = {
     'green': '#08EF0C',
     'red': '#EF0808',
@@ -15,13 +15,22 @@ class TableModel(QAbstractTableModel):
        Модель таблицы, тут описывается поведения самой таблицы и что с ней мождно делать 
     '''
     change_summary_row = pyqtSignal(QModelIndex)
-    change_summary_column = pyqtSignal(QModelIndex)
-
-    returnData = pyqtSignal(QModelIndex, int)
-
-    def __init__(self, data: np.ndarray = None) -> bool:
+    change_summary_column = pyqtSignal()
+    
+    def __init__(self) -> bool:
         super(TableModel, self).__init__()
-        self._data = data
+        self._data = [[]]
+        
+        
+    def update(self, data: np.ndarray) -> None:
+        self.layoutAboutToBeChanged.emit()
+        try:
+            summary_rows = np.apply_over_axes(np.sum, data, axes=1)
+            self._data = np.c_[data, summary_rows, np.add.accumulate(summary_rows)]
+        except np.core._exceptions.UFuncTypeError:
+            show_warning('Не понятный массив', 'Где-то ошибка в двумерном массиве')
+            
+        self.layoutChanged.emit()
 
     def rowCount(self, parent: QModelIndex = ...) -> int:
         ''' Количество строк '''
@@ -46,9 +55,6 @@ class TableModel(QAbstractTableModel):
             value = self._data[index.row(), index.column()]
             
             if role == Qt.ItemDataRole.DisplayRole:
-                if index.column() == self._data.shape[1] - 2:
-                    self.resum_row(index)
-
                 return str(value)
 
             if role == Qt.ItemDataRole.BackgroundRole:
@@ -61,8 +67,15 @@ class TableModel(QAbstractTableModel):
             Тут и  происходит изменения данных
         '''
         if role == Qt.ItemDataRole.EditRole and value:
-            self._data[index.row(), index.column()] = int(value)
-            return True
+            try:
+                self._data[index.row(), index.column()] = float(value)
+                self.resum_row(index)
+            
+                return True
+            
+            except ValueError:
+                return False
+        
 
         return False
 
@@ -77,28 +90,18 @@ class TableModel(QAbstractTableModel):
         '''
             Сумма строки
         '''
-        self.layoutAboutToBeChanged.emit()
-        self._data[index.row(), index.column()] = sum(self._data[index.row()][:-2])
+        self._data[index.row(), -2] = np.sum(self._data[index.row()][:-2])
         self.resum_befor_column(index)
         self.change_summary_row.emit(index)
-        self.layoutChanged.emit()
 
 
     def resum_befor_column(self, index: QModelIndex = ...) -> None:
         '''
-            Пересчитываем сумму колонки до определеной строки
+            Пересчитываем сумму колонки
         '''
-        for row in range(index.row()+1):
-            
-            value_befor_column_in_row = self._data[row, index.column()]
-            
-            if row == 0:
-                self._data[row, -1] = value_befor_column_in_row
-            else:
-                self._data[row, -1] = self._data[row - 1, -1] + value_befor_column_in_row
-            
-            self.change_summary_column.emit(self.index(row, index.column()+1))
-
+        self._data[:, -1] = np.add.accumulate(self._data[:, -2])
+        self.change_summary_column.emit()
+           
     def get_color(self, index: QModelIndex = ...) -> QColor:
         '''
             Проверяем меньше ли нуля цифра, и отдаем нужный цвет \n
@@ -115,3 +118,8 @@ class TableModel(QAbstractTableModel):
                 
         if index.column() > self.columnCount() - 3:
             return QColor(color.get('yellow'))
+        
+    def get_data(self) -> np.ndarray:
+        '''Удаляем наши две колонки и возвращаем результат'''
+        return np.delete(self._data, [-1, -2], axis=1)
+        

@@ -1,6 +1,7 @@
-from PyQt5.QtWidgets import QMainWindow, QAbstractItemView
+from PyQt5.QtWidgets import QMainWindow, QAbstractItemView, QMessageBox
 from PyQt5.QtCore import pyqtSlot, QItemSelection, Qt
 from .Ui_MainWindow import Ui_MainWindow
+from .widgets import show_warning
 from model import TableModel
 from delegate import ComboDelegate
 import numpy as np
@@ -24,11 +25,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             value = np.array([
                 [3, -5, 6, 1],
                 [2, 4, -5, 10],
-                [1, -3, 6, -15],
+                [1, -3, 1, -15],
                 [4, -1, 20, -15]
             ])
+        else:
+            show_warning('Не понятный массив', 'Где-то ошибка в двумерном массиве \n Исправте файл')
 
-        tableModel = TableModel(self.add_columns_finaly(value))
+        tableModel = TableModel()
+        tableModel.update(value)
         self.table.setModel(tableModel)
         
         #первая колонка будет изменяться по средствам Сombobox
@@ -39,34 +43,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.table.setSelectionMode(
             QAbstractItemView.SelectionMode.MultiSelection)
 
-    def add_columns_finaly(self, data:np.ndarray) -> np.ndarray:
-        ''' Создаем две колонки в массиве '''
-        data = np.c_[data, np.zeros(data.shape[0], dtype=np.int8)]
-        data = np.c_[data, np.zeros(data.shape[0], dtype=np.int8)]
-        return data
-
     pyqtSlot(QItemSelection, QItemSelection)
     def _repaint_graph(self, selected: QItemSelection, deselected: QItemSelection) -> None:
         '''
             перерисовываем график
         '''
         try:
-            #заносим массив вырбранной колонки
-            value = [int(x.data(Qt.ItemDataRole.DisplayRole))
-                     for x in selected.indexes()]
+            if len(selected.indexes()) != selected.indexes()[0].model().rowCount():
+                return
             
+            lfunc = np.vectorize(lambda x: float(x.data(Qt.ItemDataRole.DisplayRole)))
+            
+            #заносим массив вырбранной колонки
             self._selectionColumn.update({
-                selected.indexes()[0].column(): value
+                selected.indexes()[0].column(): lfunc(np.array(selected.indexes()))
             })
         except IndexError:
             #deselected 
-            del self._selectionColumn[deselected.indexes()[0].column()]
-
-        if len(self._selectionColumn) < 2:
+            try:
+                if len(deselected.indexes()) != deselected.indexes()[0].model().rowCount():
+                    return
+                
+                del self._selectionColumn[deselected.indexes()[0].column()]
+            except IndexError:
+                ...
+                
+        if len(self._selectionColumn) != 2:
             return
         
         self.graph.clear() #Чистим график
         
         #рисуем график
-        for i in self._selectionColumn:
-            self.graph.plot(self._selectionColumn.get(i))
+        values = list(self._selectionColumn.values())
+        self.graph.plot(values[0], values[1], pen='#42f542')
