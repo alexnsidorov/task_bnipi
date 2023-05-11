@@ -15,17 +15,17 @@ class TableModel(QAbstractTableModel):
        Модель таблицы, тут описывается поведения самой таблицы и что с ней мождно делать 
     '''
     change_summary_row = pyqtSignal(QModelIndex)
-    change_summary_column = pyqtSignal(QModelIndex)
-
-    returnData = pyqtSignal(QModelIndex, int)
-
+    change_summary_column = pyqtSignal()
+    
     def __init__(self) -> bool:
         super(TableModel, self).__init__()
         self._data = [[]]
         
+        
     def update(self, data: np.ndarray) -> None:
         self.layoutAboutToBeChanged.emit()
-        self._data = self.add_columns_finaly(data)
+        summary_rows = np.apply_over_axes(np.sum, data, axes=1)
+        self._data = np.c_[data, summary_rows, np.add.accumulate(summary_rows)]
         self.layoutChanged.emit()
 
     def rowCount(self, parent: QModelIndex = ...) -> int:
@@ -51,9 +51,6 @@ class TableModel(QAbstractTableModel):
             value = self._data[index.row(), index.column()]
             
             if role == Qt.ItemDataRole.DisplayRole:
-                if index.column() == self._data.shape[1] - 2:
-                    self.resum_row(index)
-
                 return str(value)
 
             if role == Qt.ItemDataRole.BackgroundRole:
@@ -66,8 +63,10 @@ class TableModel(QAbstractTableModel):
             Тут и  происходит изменения данных
         '''
         if role == Qt.ItemDataRole.EditRole and value:
-            self._data[index.row(), index.column()] = int(value)
+            self._data[index.row(), index.column()] = float(value)
+            self.resum_row(index)
             return True
+        
 
         return False
 
@@ -78,32 +77,26 @@ class TableModel(QAbstractTableModel):
         else: 
             return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
+    # def _first_resum_row(self) -> None:
+    #     index = self.index(0, self.rowCount()-2)
+    #     self.resum_row(self.index(0, ))
     def resum_row(self, index: QModelIndex = ...) -> None:
         '''
             Сумма строки
         '''
-        self.layoutAboutToBeChanged.emit()
-        self._data[index.row(), index.column()] = sum(self._data[index.row()][:-2])
+        # self.layoutAboutToBeChanged.emit()
+        self._data[index.row(), -2] = sum(self._data[index.row()][:-2])
         self.resum_befor_column(index)
         self.change_summary_row.emit(index)
-        self.layoutChanged.emit()
 
 
     def resum_befor_column(self, index: QModelIndex = ...) -> None:
         '''
-            Пересчитываем сумму колонки до определеной строки
+            Пересчитываем сумму колонки
         '''
-        for row in range(index.row()+1):
-            
-            value_befor_column_in_row = self._data[row, index.column()]
-            
-            if row == 0:
-                self._data[row, -1] = value_befor_column_in_row
-            else:
-                self._data[row, -1] = self._data[row - 1, -1] + value_befor_column_in_row
-            
-            self.change_summary_column.emit(self.index(row, index.column()+1))
-
+        self._data[:, -1] = np.add.accumulate(self._data[:, -2])
+        self.change_summary_column.emit()
+           
     def get_color(self, index: QModelIndex = ...) -> QColor:
         '''
             Проверяем меньше ли нуля цифра, и отдаем нужный цвет \n
@@ -125,9 +118,3 @@ class TableModel(QAbstractTableModel):
         '''Удаляем наши две колонки и возвращаем результат'''
         return np.delete(self._data, [-1, -2], axis=1)
         
-
-    def add_columns_finaly(self, data:np.ndarray) -> np.ndarray:
-        ''' Создаем две колонки в массиве '''
-        data = np.c_[data, np.zeros(data.shape[0], dtype=np.int8)]
-        data = np.c_[data, np.zeros(data.shape[0], dtype=np.int8)]
-        return data

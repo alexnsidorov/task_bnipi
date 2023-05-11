@@ -32,10 +32,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         '''
             перерисовываем график
         '''
+        
+
+                
         try:
             try:
+                #Если не выбрана колонка то просто ни чего не делаем
+                if len(selected.indexes()) != selected.indexes()[0].model().rowCount():
+                    return
+        
+                #Если не выбрана колонка то просто ни чего не делаем
+                if len(deselected.indexes()) != deselected.indexes()[0].model().rowCount():
+                    return
                 #заносим массив вырбранной колонки
-                value = [int(x.data(Qt.ItemDataRole.DisplayRole))
+                
+                value = [float(x.data(Qt.ItemDataRole.DisplayRole))
                      for x in selected.indexes()]
             
                 self._selectionColumn.update({
@@ -47,7 +58,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except KeyError:
             ...
             
-        if len(self._selectionColumn) < 2:
+        if len(self._selectionColumn) == 2:
             return
         
         self.graph.clear() #Чистим график
