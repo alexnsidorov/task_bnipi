@@ -2,6 +2,8 @@ from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt, pyqtSignal, Qt
 from PyQt5.QtGui import QColor
 from typing import Any
 import numpy as np
+import h5py
+from work_with_file import with_h5py_matrix
 
 color = {
     'green': '#08EF0C',
@@ -17,44 +19,60 @@ class TableModel(QAbstractTableModel):
     change_summary_row = pyqtSignal(QModelIndex)
     change_summary_column = pyqtSignal()
     
+    _h5py_matrix: with_h5py_matrix = None
+
     def __init__(self) -> bool:
         super(TableModel, self).__init__()
         self._data = [[]]
+        self._file_name = None
         
         
-    def update(self, data: np.ndarray) -> None:
+    def update(self, file_name) -> None:
         self.layoutAboutToBeChanged.emit()
-        summary_rows = np.apply_over_axes(np.sum, data, axes=1)
-        self._data = np.c_[data, summary_rows, np.add.accumulate(summary_rows)]
+        self._h5py_matrix = with_h5py_matrix(file_name) 
+        
+        # with h5py.File(file_name, 'w') as file:
+        #     with h5py.File(file_name, 'r') as file_read:
+        #         summary_rows = np.apply_over_axes(np.sum, np.array(file_read['Base_Group/default']), axes=1)
+        #         file['Base_Group/default'].resize((self.rowCount(), self.columnCount()+2))
+        #         file['Base_Group/default'][:,:-2] = summary_rows
+        #         file['Base_Group/default'][:,:-1] = np.add.accumulate(summary_rows)
+            
+        
         self.layoutChanged.emit()
-
+        
+        
     def rowCount(self, parent: QModelIndex = ...) -> int:
         ''' Количество строк '''
         try:
-            return self._data.shape[0]
+            return self._h5py_matrix.shape(0)
         except AttributeError:
             return 0
 
     def columnCount(self, parent: QModelIndex = ...) -> int:
         ''' Количество колонок '''
         try:
-            return self._data.shape[1]
+            return self._h5py_matrix.shape(1)
         except AttributeError:
             return 0
-
+        
     def data(self, index: QModelIndex, role: int = ...) -> Any:
         '''
             Отсюда береутся данные по Qt.ItemDataRole
         '''
         if index.isValid():
             
-            value = self._data[index.row(), index.column()]
+            value = None
+            # with h5py.File(self._file_name, 'r') as f:
+            #     f['Base_Group/default']
+            #     value = f['Base_Group/default'][index.row():index.column]
             
             if role == Qt.ItemDataRole.DisplayRole:
-                return str(value)
+                    return value
+                    
 
             if role == Qt.ItemDataRole.BackgroundRole:
-                return self.get_color(index)
+                return self.get_color(value, index)
                 
         return None
 
@@ -63,10 +81,13 @@ class TableModel(QAbstractTableModel):
             Тут и  происходит изменения данных
         '''
         if role == Qt.ItemDataRole.EditRole and value:
-            self._data[index.row(), index.column()] = float(value)
-            self.resum_row(index)
-            return True
-        
+            try:
+                with h5py.File(self._file_name, 'w') as file:
+                    file['Base_Group/default'][index.row(), index.column()] = float(value)
+                    self.resum_row(index)
+                    return True
+            except ValueError:
+                return False
 
         return False
 
@@ -77,14 +98,10 @@ class TableModel(QAbstractTableModel):
         else: 
             return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
 
-    # def _first_resum_row(self) -> None:
-    #     index = self.index(0, self.rowCount()-2)
-    #     self.resum_row(self.index(0, ))
     def resum_row(self, index: QModelIndex = ...) -> None:
         '''
             Сумма строки
         '''
-        # self.layoutAboutToBeChanged.emit()
         self._data[index.row(), -2] = sum(self._data[index.row()][:-2])
         self.resum_befor_column(index)
         self.change_summary_row.emit(index)
@@ -97,12 +114,11 @@ class TableModel(QAbstractTableModel):
         self._data[:, -1] = np.add.accumulate(self._data[:, -2])
         self.change_summary_column.emit()
            
-    def get_color(self, index: QModelIndex = ...) -> QColor:
+    def get_color(self, value, index: QModelIndex = ..., ) -> QColor:
         '''
             Проверяем меньше ли нуля цифра, и отдаем нужный цвет \n
             доп, последние две колонки окрашеваем в желтый
         '''
-        value = self._data[index.row(), index.column()]
         
         if index.column() == 1:
             if int(value) > 0:

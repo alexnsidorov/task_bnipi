@@ -1,5 +1,6 @@
 import numpy as np
 import h5py
+import os
 
 def values_from_file(path: str = None) -> np.ndarray:
     try:
@@ -11,12 +12,29 @@ def values_from_file(path: str = None) -> np.ndarray:
     except ValueError:
         return None
     
-def open_h5py(path):
-    with h5py.File(path, 'r') as f:
-        return np.array(f['Base_Group/default'])
-   
-def save_h5py(path: str, data: np.ndarray) -> None:
-    with h5py.File(path, 'w') as f:
-        g = f.create_group('Base_Group')
-        g.create_dataset('default', data=data)
+class with_h5py_matrix:
+    def __init__(self, file_name):
+        if os.path.exists(file_name):
+            self._file_name = file_name
+        else:
+            raise FileExistsError(F"Не нашли файл: {file_name}")
+    
+    @property
+    def read_data(self):
+        with h5py.File(self._file_name, 'r') as f:
+            return f["Base_Group/default"]
+    
+    @property
+    def write_data(self):
+        with h5py.File(self._file_name, 'w') as f:
+            return f['Base_Group/default']
+    
+    @property
+    def shape(self) -> tuple:
+        with h5py.File(self._file_name, 'r') as f:
+            return f['Base_Group/default'].shape
+                       
+            
         
+    
+    
