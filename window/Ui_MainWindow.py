@@ -29,15 +29,10 @@ class Ui_MainWindow(object):
         self.graph.setObjectName("graph")
         self.graph.setMinimumHeight(300)
         self.verticalLayout.addWidget(self.splitter)
-        self.horizontalLayout = QtWidgets.QHBoxLayout()
-        self.horizontalLayout.setObjectName("horizontalLayout")
-        self.save = QtWidgets.QPushButton(self.centralwidget)
-        self.save.setObjectName("save")
-        self.horizontalLayout.addWidget(self.save)
         self.open = QtWidgets.QPushButton(self.centralwidget)
         self.open.setObjectName("open")
-        self.horizontalLayout.addWidget(self.open)
-        self.verticalLayout.addLayout(self.horizontalLayout)
+        self.verticalLayout.addWidget(self.open)
+        # self.verticalLayout.addLayout(self.horizontalLayout)
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
@@ -49,5 +44,4 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Testing bnipi"))
-        self.save.setText(_translate("MainWindow", "Save in file"))
         self.open.setText(_translate("MainWindow", "Open file"))

@@ -26,7 +26,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QAbstractItemView.SelectionMode.MultiSelection)
 
         self.open.clicked.connect(self._open_file)
-        self.save.clicked.connect(self._save_file)
+        # self.save.clicked.connect(self._save_file)
 
     pyqtSlot(QItemSelection, QItemSelection)
 
