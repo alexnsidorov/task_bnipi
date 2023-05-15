@@ -29,9 +29,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.save.clicked.connect(self._save_file)
 
     pyqtSlot(QItemSelection, QItemSelection)
+
     def _repaint_graph(self, selected: QItemSelection, deselected: QItemSelection) -> None:
         '''
             перерисовываем график
+        '''
+
+        self._prepare_data(selected, deselected)
+
+        if len(self._selectionColumn) != 2:
+            return
+
+        self.graph.clear()  # Чистим график
+
+        # рисуем график
+        values = list(self._selectionColumn.values())
+        self.graph.plot(values[0], values[1], pen='#42f542')
+
+    def _prepare_data(self, selected: QItemSelection, deselected: QItemSelection):
+        '''
+            тут заносим и удаляем данные в dict _selectionColumn 
         '''
         try:
             if len(selected.indexes()) != selected.indexes()[0].model().rowCount():
@@ -53,22 +70,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 del self._selectionColumn[deselected.indexes()[0].column()]
             except IndexError:
                 ...
-
-        if len(self._selectionColumn) != 2:
-            return
-
-        self.graph.clear()  # Чистим график
-
-        # рисуем график
-        values = list(self._selectionColumn.values())
-        self.graph.plot(values[0], values[1], pen='#42f542')
-
+            except KeyError:
+                ...
 
     def _open_file(self) -> None:
         fileName, _ = QFileDialog.getOpenFileName(
             self, "Открыть файл", "", "All Files (*);;")
-        
-        
+
         if fileName:
             self.tableModel.update(fileName)
 

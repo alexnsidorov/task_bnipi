@@ -29,15 +29,7 @@ class TableModel(QAbstractTableModel):
         
     def update(self, file_name) -> None:
         self.layoutAboutToBeChanged.emit()
-        self._h5py_matrix = with_h5py_matrix(file_name) 
-        
-        # with h5py.File(file_name, 'w') as file:
-        #     with h5py.File(file_name, 'r') as file_read:
-        #         summary_rows = np.apply_over_axes(np.sum, np.array(file_read['Base_Group/default']), axes=1)
-        #         file['Base_Group/default'].resize((self.rowCount(), self.columnCount()+2))
-        #         file['Base_Group/default'][:,:-2] = summary_rows
-        #         file['Base_Group/default'][:,:-1] = np.add.accumulate(summary_rows)
-            
+        self._h5py_matrix = with_h5py_matrix(file_name)             
         
         self.layoutChanged.emit()
         
@@ -45,14 +37,14 @@ class TableModel(QAbstractTableModel):
     def rowCount(self, parent: QModelIndex = ...) -> int:
         ''' Количество строк '''
         try:
-            return self._h5py_matrix.shape(0)
+            return self._h5py_matrix.shape()[0]
         except AttributeError:
             return 0
 
     def columnCount(self, parent: QModelIndex = ...) -> int:
         ''' Количество колонок '''
         try:
-            return self._h5py_matrix.shape(1)
+            return self._h5py_matrix.shape()[1]
         except AttributeError:
             return 0
         
@@ -62,13 +54,9 @@ class TableModel(QAbstractTableModel):
         '''
         if index.isValid():
             
-            value = None
-            # with h5py.File(self._file_name, 'r') as f:
-            #     f['Base_Group/default']
-            #     value = f['Base_Group/default'][index.row():index.column]
-            
+            value = self._h5py_matrix.data(index)
             if role == Qt.ItemDataRole.DisplayRole:
-                    return value
+                return str(value)
                     
 
             if role == Qt.ItemDataRole.BackgroundRole:
@@ -82,10 +70,8 @@ class TableModel(QAbstractTableModel):
         '''
         if role == Qt.ItemDataRole.EditRole and value:
             try:
-                with h5py.File(self._file_name, 'w') as file:
-                    file['Base_Group/default'][index.row(), index.column()] = float(value)
-                    self.resum_row(index)
-                    return True
+                self._h5py_matrix.change_value(value, index)
+                return True
             except ValueError:
                 return False
 
@@ -97,22 +83,6 @@ class TableModel(QAbstractTableModel):
             return Qt.ItemFlag.ItemIsEditable | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
         else: 
             return Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable
-
-    def resum_row(self, index: QModelIndex = ...) -> None:
-        '''
-            Сумма строки
-        '''
-        self._data[index.row(), -2] = sum(self._data[index.row()][:-2])
-        self.resum_befor_column(index)
-        self.change_summary_row.emit(index)
-
-
-    def resum_befor_column(self, index: QModelIndex = ...) -> None:
-        '''
-            Пересчитываем сумму колонки
-        '''
-        self._data[:, -1] = np.add.accumulate(self._data[:, -2])
-        self.change_summary_column.emit()
            
     def get_color(self, value, index: QModelIndex = ..., ) -> QColor:
         '''
@@ -124,7 +94,7 @@ class TableModel(QAbstractTableModel):
             if int(value) > 0:
                 return QColor(color.get('green'))
 
-            if int(value) < 0:
+            if int(value) <= 0:
                 return QColor(color.get('red'))
                 
         if index.column() > self.columnCount() - 3:
